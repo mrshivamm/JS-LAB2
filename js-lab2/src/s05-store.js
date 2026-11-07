@@ -19,33 +19,92 @@ export function transition(state, event) {
   switch (event.type) {
     case "LOAD_START":
       // status becomes "loading" and error becomes null; everything else stays
-      throw new Error("TODO: LOAD_START");
+      return { ...state, status: "loading", error: null };
     case "LOAD_OK":
       // status "ready", courses from event.courses; on the FIRST success also
       // fill departments (unique, sorted) from those courses
-      throw new Error("TODO: LOAD_OK");
+       const newDepartments = state.departments.length > 0 ? state.departments: [...new Set( event.courses.map(course => course.department)  )].sort();
+       return { ...state,status: "ready",courses: event.courses,departments: newDepartments};
+
     case "LOAD_FAIL":
       // status "error", error from event.message (keep the old courses)
-      throw new Error("TODO: LOAD_FAIL");
+      return { ...state, status: "error", error: event.message };
+
     case "SET_DEPARTMENT":
       // department from event.department — the SAME state if it didn't change
-      throw new Error("TODO: SET_DEPARTMENT");
+     if (state.department === event.department) {
+       return state;
+      }
+     return { ...state, department: event.department };
+
     case "SET_QUERY":
       // query from event.query — the SAME state if it didn't change
-      throw new Error("TODO: SET_QUERY");
+      if (state.query === event.query) {
+        return state;
+      }
+      return { ...state, query: event.query };
+
     case "ADD":
       // add { id, code, title, credits } of event.course to the planner —
       // the SAME state if it's already there.
       // Stretch: also refuse a full course, or one that would go over 24 credits.
-      throw new Error("TODO: ADD");
+      const addedCourse = event.course;
+      const isAlreadyPlanned = state.planner.some(course => course.id === addedCourse.id);
+    
+      const totalCredits = state.planner.reduce((sum, course) => sum + course.credits, 0 );
+      const isFull = addedCourse.seatsLeft === 0;
+    
+      const exceedsLimit = totalCredits + addedCourse.credits > 24;
+    
+      if (isAlreadyPlanned || isFull || exceedsLimit) {
+        return state;
+      }
+       const courseToAdd = {
+         id: addedCourse.id,
+         code: addedCourse.code,
+         title: addedCourse.title,
+         credits: addedCourse.credits
+       };
+    
+      return {...state,planner: [...state.planner, courseToAdd] };
+
     case "REMOVE":
       // remove the course with id event.id, AND its grade if it has one —
       // the SAME state if it isn't in the planner
-      throw new Error("TODO: REMOVE");
+       const exists = state.planner.some( course => course.id === event.id);
+
+       if (!exists) {
+         return state;
+       }
+     
+       const updatedPlanner = state.planner.filter( course => course.id !== event.id);
+     
+       const updatedGrades = { ...state.grades };
+       delete updatedGrades[event.id];
+
+       return {...state,planner:updatedPlanner,grades:updatedGrades};
+
     case "SET_GRADE":
       // grades[event.id] = event.grade (a computed key!); an empty grade ""
       // removes that course's entry — the SAME state if nothing changes
-      throw new Error("TODO: SET_GRADE");
+       const currentGrade = state.grades[event.id];
+    
+      if (event.grade === "") {
+        if (currentGrade === undefined) {
+          return state;
+        }
+    
+        const updatedGrades = { ...state.grades };
+        delete updatedGrades[event.id];
+    
+        return { ...state, grades: updatedGrades };
+      }
+    
+      if (currentGrade === event.grade) {
+        return state;
+      }
+      return {...state,grades: {  ...state.grades,  [event.id]: event.grade } };
+
     default:
       return state; // an event we don't know changes nothing
   }
